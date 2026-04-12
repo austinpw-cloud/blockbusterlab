@@ -1,0 +1,69 @@
+/**
+ * 주문 접수 서버 검증 스키마 (Zod).
+ *
+ * 클라이언트에서 FormData로 전달받은 데이터를 검증하고
+ * 타입 안전하게 DB에 저장할 수 있도록 해줌.
+ */
+
+import { z } from "zod";
+import { GAME_GENRES, TARGET_MARKETS, ASO_PACKAGES } from "./constants";
+
+const genreIds = GAME_GENRES.map((g) => g.id) as [string, ...string[]];
+const marketIds = TARGET_MARKETS.map((m) => m.id) as [string, ...string[]];
+const packageIds = ASO_PACKAGES.map((p) => p.id) as [string, ...string[]];
+
+export const orderInputSchema = z.object({
+  // 고객 정보
+  customer_name: z.string().min(1, "이름을 입력해 주세요").max(100),
+  customer_email: z.string().email("올바른 이메일을 입력해 주세요"),
+  customer_phone: z.string().optional().or(z.literal("")),
+  studio_name: z.string().min(1, "스튜디오명을 입력해 주세요").max(200),
+
+  // 게임 정보
+  game_title: z.string().min(1, "게임 제목을 입력해 주세요").max(200),
+  game_genre: z.enum(genreIds, { message: "장르를 선택해 주세요" }),
+  store_url_android: z
+    .string()
+    .url("올바른 URL을 입력해 주세요")
+    .optional()
+    .or(z.literal("")),
+  target_markets: z
+    .array(z.enum(marketIds))
+    .min(1, "최소 1개 타겟 시장을 선택해 주세요"),
+
+  // 핵심 특징 — 스토어 URL이 있으면 생략 가능 (자동 수집된 소개문에서 추론)
+  feature_1: z.string().max(500).optional().or(z.literal("")),
+  feature_2: z.string().max(500).optional().or(z.literal("")),
+  feature_3: z.string().max(500).optional().or(z.literal("")),
+
+  // 추가 메모
+  emphasis_notes: z.string().max(2000).optional().or(z.literal("")),
+  avoid_notes: z.string().max(2000).optional().or(z.literal("")),
+
+  // 패키지
+  package_id: z.enum(packageIds, { message: "패키지를 선택해 주세요" }),
+});
+
+export type OrderInput = z.infer<typeof orderInputSchema>;
+
+/**
+ * 파일 업로드 검증
+ */
+export const ALLOWED_FILE_TYPES = {
+  screenshot: ["image/jpeg", "image/png", "image/webp"],
+  logo: ["image/jpeg", "image/png", "image/webp", "image/svg+xml"],
+  other: [
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/svg+xml",
+    "video/mp4",
+    "video/webm",
+    "application/pdf",
+  ],
+};
+
+export const MAX_FILE_SIZE_MB = 20;
+export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+export const MIN_SCREENSHOT_COUNT = 5;
+export const MAX_SCREENSHOT_COUNT = 15;
