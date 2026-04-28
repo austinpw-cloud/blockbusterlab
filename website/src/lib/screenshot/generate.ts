@@ -537,7 +537,7 @@ export async function generateScreenshotsForOrder(
     analysis,
     judgment,
     referenceSummaries,
-    referenceImages,
+    referenceImages: [],
     libraryJudgmentCost,
     libraryAugmentationCost,
   });
