@@ -27,6 +27,20 @@ import type { AsoResult } from "@/lib/ai/aso-analyzer";
 const BUCKET = "reference-library";
 const MIN_REFERENCE_SCREENSHOTS = 20; // 이 미만이면 자동으로 커버리지 판단 "부족"
 
+/**
+ * Library 자동 확장(보완 수집·분석) 허용 여부.
+ *
+ * **현재 false (하드 가드)**: Codex 피드백 A-2 — 관리자 승인 UI 가 구현되기 전까지
+ * Opus 판단만으로 Library 에 영구 데이터를 쓰는 건 편향 축적 위험.
+ * 확장 후보가 감지돼도 수집·분석은 건너뛰고, 후보 목록만 로그·augmentation 반환에 포함.
+ *
+ * 승인 UI 구현 시:
+ *  1) 여기를 true 로 바꾸거나, 엔드포인트별 opt-in 인자로 변경
+ *  2) 후보 목록을 `pending_library_expansions` 테이블(신규)에 저장하는 경로 추가
+ *  3) 관리자 승인 시 collectSpecificGames + analyzeUnanalyzedScreenshots 실행
+ */
+const LIBRARY_AUTO_EXPANSION_ENABLED = false;
+
 /** Opus 4.6 단가 */
 function estimateOpusCost(inputTokens: number, outputTokens: number): number {
   return (inputTokens / 1_000_000) * 15 + (outputTokens / 1_000_000) * 75;
@@ -65,6 +79,13 @@ export type LibraryCoverage = {
     }>;
     reason: string;
     cost_usd: number;
+    /**
+     * 확장 상태.
+     *  - "applied": 실제로 수집·분석해 Library 에 반영
+     *  - "pending_approval": 후보만 지정, 관리자 승인 대기 (Library 미반영)
+     *  - "skipped_no_targets": Opus 가 확장 필요 판정했으나 유효 후보 없음
+     */
+    status: "applied" | "pending_approval" | "skipped_no_targets";
   };
 };
 
@@ -403,41 +424,64 @@ export async function getLibraryCoverage(opts: {
       }
 
       if (appIds.length > 0) {
-        console.log(
-          `[library-coverage] 보완 수집 시작 — ${appIds.length}개 (${appIds.join(", ")})`
-        );
+        if (!LIBRARY_AUTO_EXPANSION_ENABLED) {
+          // A-2 가드: 관리자 승인 UI 구현 전까지 자동 DB 저장 금지.
+          // 후보 목록만 로그·반환, 실제 수집·분석·저장은 스킵.
+          console.warn(
+            `[library-coverage] ⚠ LIBRARY_AUTO_EXPANSION_ENABLED=false — 보완 후보 ${appIds.length}개 감지, ` +
+              `실제 수집·분석은 스킵 (승인 UI 구현 전까지). 후보: ${appIds.join(", ")}`
+          );
+          augmentation = {
+            selected_references: selected,
+            reason: judgment.reasoning,
+            cost_usd: 0,
+            status: "pending_approval",
+          };
+        } else {
+          console.log(
+            `[library-coverage] 보완 수집 시작 — ${appIds.length}개 (${appIds.join(", ")})`
+          );
 
-        // 5. 수집 (기존 게임은 collect 내부에서 스킵됨)
-        await collectSpecificGames({
-          genre: opts.game_genre,
-          appIds,
-          country,
-        });
+          // 5. 수집 (기존 게임은 collect 내부에서 스킵됨)
+          await collectSpecificGames({
+            genre: opts.game_genre,
+            appIds,
+            country,
+          });
 
-        // 6. 신규 스크린샷 분석 (이 country 범위만)
-        const analyzeRes = await analyzeUnanalyzedScreenshots(
-          null,
-          opts.game_genre,
-          country
-        );
+          // 6. 신규 스크린샷 분석 (이 country 범위만)
+          const analyzeRes = await analyzeUnanalyzedScreenshots(
+            null,
+            opts.game_genre,
+            country
+          );
 
-        console.log(
-          `[library-coverage] 보완 분석 완료 — ${analyzeRes.analyzed}장, $${analyzeRes.total_cost_usd.toFixed(4)}`
-        );
+          console.log(
+            `[library-coverage] 보완 분석 완료 — ${analyzeRes.analyzed}장, $${analyzeRes.total_cost_usd.toFixed(4)}`
+          );
 
-        // 7. Library 다시 로드
-        const reloaded = await loadLibraryForGenre(
-          admin,
-          opts.game_genre,
-          country
-        );
-        games = reloaded.games;
-        screenshots = reloaded.screenshots;
+          // 7. Library 다시 로드
+          const reloaded = await loadLibraryForGenre(
+            admin,
+            opts.game_genre,
+            country
+          );
+          games = reloaded.games;
+          screenshots = reloaded.screenshots;
 
+          augmentation = {
+            selected_references: selected,
+            reason: judgment.reasoning,
+            cost_usd: analyzeRes.total_cost_usd,
+            status: "applied",
+          };
+        }
+      } else {
         augmentation = {
-          selected_references: selected,
+          selected_references: [],
           reason: judgment.reasoning,
-          cost_usd: analyzeRes.total_cost_usd,
+          cost_usd: 0,
+          status: "skipped_no_targets",
         };
       }
     }

@@ -1,5 +1,11 @@
 # 기술 아키텍처
 
+> **초기 기획 기준 (2026-04-12 이전)**. 본 문서는 Phase 1~3 전체를 아우르는 **초기 설계 그림** 이다.
+>
+> **Phase 1 실제 구현 현황**은 `02-current-state.md` 와 `07-aso-service-spec.md`, **Library 구조**는 `12-library-analysis-design.md`, **DB 실체**는 `website/supabase/migrations/` 를 참조.
+>
+> 본 문서의 가설(예: `aso_benchmarks` 테이블) 중 실제로는 다른 형태로 구현된 것들이 있다. 주요 차이는 아래 §"실제 구현과의 차이" 참조.
+
 ## 시스템 구성도
 
 ```
@@ -299,3 +305,40 @@ suggestions = generate_suggestions(game_info, analysis_results, benchmarks)
 | Resend | $0~20/월 | 무료 100통/일, 초과 시 과금 |
 | 도메인 | 이미 보유 | indiegame.com |
 | **합계** | **$30~90/월** | 초기 단계 |
+
+
+---
+
+## 실제 구현과의 차이 (2026-04-13 갱신)
+
+초기 기획과 실제 구현이 달라진 주요 항목:
+
+### DB 스키마
+- ❌ `aso_benchmarks` 단일 테이블 (기획) → ✅ **`reference_games` + `reference_screenshots` + `library_patterns`** 3분리 (실제)
+  - 설계 근거: `docs/12-library-analysis-design.md` §4
+- 실제 테이블은 `website/supabase/migrations/001~006.sql` 참조
+
+### ASO 파이프라인
+- ❌ `POST /api/ai/aso-analyze`·`POST /api/ai/aso-suggest` (기획) →
+- ✅ 실제: Stage 8 주문 처리 + Reference Library 분석 파이프라인으로 분리
+  - `/api/dev/reference-library/curate` — 50개 큐레이션 수집
+  - `/api/dev/reference-library/analyze?levels=1,2,3` — L1~L3 파이프라인
+  - `/api/dev/reference-library/synthesize` — L3 단건/Tier A
+  - `/api/dev/reference-library/patterns` — 조회
+- Stage 8 의뢰 처리 API 는 관리자 백오피스 내부에서 호출 (별도 `/api/ai/*` 라우트 없음)
+
+### 파일 저장소
+- ❌ Vercel Blob (기획 일부) → ✅ **Supabase Storage** (실제, 3 버킷: order-materials · deliverables · reference-library)
+
+### AI 파이프라인 세분화
+- 기획: "ASO 분석 = 하나의 파이프라인"
+- 실제: **L1 관찰 · L2 게임 해석 · L3 패턴 합성 3층**, 각 층마다 Sonnet/Opus 분기
+  - L1 아이콘·텍스트·스크린샷: Sonnet
+  - L2 게임 단위 ASO 수법 해석: Opus (품질 중요)
+  - L3 축 조합 패턴·인사이트 합성: Opus
+
+### 운영 플로우
+- 기획: "편집장 검수" 단일 단계
+- 실제: Stage 9 **업로드 자료 평가 → 가이드/제작 분기** 추가. Library **온디맨드 확장 관리자 승인 게이트** (Phase 1 Step 3 예정)
+
+상세는 각 문서 참조.

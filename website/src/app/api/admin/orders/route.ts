@@ -33,6 +33,7 @@ export async function GET() {
         game_title,
         game_genre,
         store_url_android,
+        store_url_apple,
         target_market,
         core_features,
         additional_notes,

@@ -1,135 +1,114 @@
 # 로드맵
 
-> **최종 업데이트**: 2026-04-12
+> **최종 업데이트**: 2026-04-14 (Step 2 Stage 8 Library 통합 코드 완료)
 
 ## 전체 Phase 개요
 
 ```
-Phase 0: 기반 구축        ✅ 완료
-Phase 1: ASO 서비스       🔄 진행 중 (MVP 완성, AI 분석 남음)
-Phase 2: 보도자료 서비스   ⬜ 대기
-Phase 3: 번역 서비스      ⬜ 대기
-Phase 4: 해외 인디 확장   ⬜ 장기
+Phase 0: 기반 구축           ✅ 완료
+Phase 1: ASO 서비스          🔄 진행 중 (핵심 모듈 완성, Library 실측·통합 대기)
+Phase 2: 보도자료 서비스     ⬜ 대기
+Phase 3: 번역 서비스         ⬜ 대기
+Phase 4: 해외 인디 확장      ⬜ 장기
 ```
 
 ---
 
 ## Phase 0: 기반 구축 ✅
 
-### Stage 1: 기반 인프라 [완료]
-- [x] 브랜딩 (blockbusterlab)
-- [x] 인프라 계정 결정 (Supabase=블록버스터랩, Vercel/GitHub=개인)
-- [x] Supabase 프로젝트 생성 (blockbusterlab-aso, Seoul)
-- [x] 환경변수 설정 (.env.local + Vercel)
-- [x] DB 스키마 마이그레이션
-- [x] Storage 버킷 생성
-
-### Stage 2: 고객용 신청 폼 [완료]
-- [x] UI 컴포넌트 모듈화 (6개)
-- [x] 신청 폼 섹션 (6개) — 고객/게임/특징/자료/메모/패키지
-- [x] 파일 업로드 (드래그앤드롭)
-- [x] Zod 검증 (클라이언트 + 서버)
-- [x] 접수 완료 페이지
-
-### Stage 3: 주문 접수 API [완료]
-- [x] POST /api/orders (multipart/form-data)
-- [x] 고객 upsert 로직
-- [x] 주문 생성 + 자동 번호
-- [x] 파일 업로드 + 메타데이터
-- [x] 실패 시 rollback
-
-### Stage 4: Google Play 자동 수집 [완료]
-- [x] google-play-scraper 연동
-- [x] 이미지 다운로드 & Storage 업로드
-- [x] URL만으로 주문 가능하게 UX 변경
-
-### Stage 5: 웹사이트 콘텐츠 정직화 [완료]
-- [x] 가짜 통계 제거
-- [x] 서비스 상태 표시 (NOW / 준비 중)
-- [x] Phase 1 가격 반영
-- [x] Founding Partner 섹션
+- 브랜딩 (blockbusterlab) · 인프라 계정 · DB 스키마 001~003 · Storage · `.env` · Vercel
+- 고객 신청 폼 `/apply` + 파일 업로드 + Google Play URL 자동 수집
+- 주문 접수 API · Google Play 수집 파이프라인 · 웹사이트 콘텐츠 정직화
 
 ---
 
 ## Phase 1: ASO 서비스 (진행 중)
 
-### Stage 6: 관리자 백오피스 [다음 우선순위] ⏳
-- [ ] `/admin` 라우트 + 레이아웃
-- [ ] Supabase Auth로 관리자 인증
-- [ ] 주문 목록 + 필터 UI
-- [ ] 주문 상세 페이지
-- [ ] 고객 material 미리보기 / 다운로드
-- [ ] 상태 변경 (pending → processing → qc → delivered)
-- [ ] 기존 임시 `/api/admin/*` 엔드포인트에 인증 추가
+### ✅ 완료
+
+- **Stage 6 관리자 백오피스** — 매직 링크 인증 · 주문 목록·상세 · 상태 전환
+- **Stage 8 ASO 분석 엔진 v2.2** — Opus + Library 주축·유사 게임 + 경쟁작 실시간 + Vision + 글로벌 프레임 + 축별 변주. Library-first 통합·리뷰 제거 반영. `principles.ts` 와 `docs/aso/knowledge.md` 동기화
+- **Stage 9 스크린샷 제작 재설계** — 업로드 자료 평가 → 가이드/제작 분기 → 오버레이 composite 구조
+- **ASO 지식 체계** (`docs/aso/`) — knowledge.md · sources.md · raw-notes · archived
+- **Reference Library 3층 설계** (`docs/12-library-analysis-design.md` v2.7)
+  - 3층 구조 (관찰 · 패턴 · 인사이트), 인사이트는 `library_patterns` JSONB 에 내재화
+  - 축 (장르 · 시장 · 수익모델 · 스튜디오 규모) 기반 조합 패턴
+  - IP·AAA 퍼블리셔 필터 + IP 프랜차이즈 키워드 필터
+  - 평점·리뷰는 ASO 분석과 무관 — 사용 안 함
+- **마이그레이션 006** 적용 완료
+- **L1 모듈** — `analyze-icon` · `analyze-text` · `analyze` (슬롯)
+- **L2 모듈** — `analyze-game` (Opus, ASO 수법 해석)
+- **L3 모듈** — `synthesize-patterns` (Opus, Tier A 40조합)
+- **오케스트레이터** + API 엔드포인트 (`analyze` · `synthesize` · `patterns`)
+- **큐레이션 파이프라인** — 3경로 수집 · IP 필터 · 자동 태깅 · execute 실행 완료 (45/45 수집, case_study 5 공석)
+
+### 🔄 남은 것 (우선순위 순)
+
+#### Step 1 — Library 초기 45개 실측 구축 (타겟 50, case_study 5 공석)
+- [x] `/api/dev/reference-library/curate?execute=true` 실행 완료 (45/45, 스크래퍼만, Claude API 비용 $0)
+- [ ] `/api/dev/reference-library/analyze?levels=1,2,3` L1~L3 파이프라인 실행 (Opus, ~$37~47)
+- [ ] `library_patterns` 조회해 초기 합성 결과 품질 검증
+
+**예상 소요**: 1일
+
+#### Step 2 — Stage 8 Library 통합 ✅ **코드 완료 (2026-04-14), 실동작 검증은 Step 1 L1~L3 실행 후**
+- [x] 의뢰 처리 플로우에 Library 조회 단계 추가 (`pattern-query.ts`)
+- [x] 경쟁작 Vision 재호출 축소 (Library 주축 있을 때 5→3 축소. Library=장르 기준 · 경쟁작=현재 시장 옆자리)
+- [x] 축 조합 fallback 규칙 (specific_4axis → genre_market_monetization → genre_market → genre_only)
+- [x] 리뷰·평점 의존 제거 (`includeReviews: false`, why_they_top·community_signals 삭제)
+
+**실측 검증**: Step 1 (L1~L3 실행) 완료 후 측정. 의뢰당 비용 효과 $1.77 → $0.30~0.50 는 Library 주축·유사 게임 실제 반영 후 확인.
+
+#### Step 3 — 온디맨드 확장 + 관리자 승인 UI
+- [ ] 의뢰 처리 중 4가지 트리거 (T1~T4) 감지 로직
+- [ ] 후보 탐색 → 관리자 승인 큐 UI
+- [ ] 승인 시 수집·L1~L2 실행 → `commission_driven` 태깅 저장
+- [ ] L3 재합성 트리거 (`pending_commission_insights` 5+)
 
 **예상 소요**: 3~4일
 
-### Stage 7: 이메일 알림 [다음] ⏳
-- [ ] Resend 계정 가입 (개인 이메일)
-- [ ] blockbusterlab.com 도메인 인증 (DNS)
-- [ ] 템플릿: 접수 확인 (고객용)
-- [ ] 템플릿: 신규 주문 (담당자용, bbl@blockbusterlab.com)
-- [ ] 템플릿: 결과물 전달 (고객용)
-- [ ] 이메일 발송 유틸 모듈
+#### Step 4 — 의뢰에서 인사이트 추출·누적 루프
+- [ ] 의뢰 처리 후 LLM 이 `commission_derived_insights` 추출
+- [ ] 해당 축 조합 `library_patterns` 에 누적
+- [ ] 관리자 산출물 품질 평가 UI → `confirmed_by_delivery` 플래그
 
-**예상 소요**: 1~2일
+**예상 소요**: 2일
 
-### Stage 8: AI 분석 엔진 [핵심] ⏳
-- [ ] Anthropic 계정 가입 + API 키
-- [ ] `ASO-bible-by-genre-2026.md` → `aso_benchmarks` 테이블 임포트
-- [ ] 장르 자동 분류 프롬프트
-- [ ] 벤치마크 비교 분석 프롬프트
-- [ ] 텍스트 결과물 생성 프롬프트
-  - 제목 3개 대안
-  - 서브타이틀 3개 대안
-  - 소개문구 완성본 (첫 252자 최적화)
-  - 키워드 30~50개
-- [ ] 관리자 백오피스에 [분석 실행] 버튼
-- [ ] 결과물 `deliverables` 테이블 저장
+#### Step 5 — end-to-end 검증 (루노소프트)
+- [ ] 루노소프트 6개 게임 중 1개로 전체 플로우
+- [ ] 편집장 피드백 수렴·프롬프트 튜닝
 
-**예상 소요**: 4~5일
+**예상 소요**: 1주
 
-### Stage 9: 스크린샷 자동 렌더링 [핵심] ⏳
-- [ ] 장르별 HTML/CSS 템플릿 10~15개 제작 (Claude Sonnet으로 생성)
-- [ ] Puppeteer 렌더링 파이프라인
-- [ ] Google Play 규격 export
-- [ ] 상세 제작 가이드 문서 자동 생성 (fallback)
-- [ ] 결과물 Storage 저장
+#### Step 6 — 보조 기능
+- [ ] Stage 7 이메일 알림 (Resend)
+- [ ] 고객 대시보드 `/dashboard`
+- [ ] 결제 시스템 검토
 
 **예상 소요**: 3~4일
 
-### Stage 10: 결과물 전달 플로우 [운영] ⏳
-- [ ] 관리자 [전달] 버튼
-- [ ] 결과물 압축 패키지 생성
-- [ ] 고객 이메일 발송
-- [ ] 고객 대시보드 페이지 (`/dashboard`)
-- [ ] 결과물 다운로드 링크
-- [ ] 수정 요청 폼
+#### Step 7 (선택) — case_study 5개 큐레이션
+- [ ] Apptweak·Phiture·Storemaven 블로그에서 ASO 작업 사례로 분석된 게임 5개 수동 선별
+- [ ] `CASE_STUDY_APP_IDS` 에 등록 후 재수집
 
-**예상 소요**: 2~3일
-
-### Stage 11: 베타 테스트 & 개선 [검증] ⏳
-- [ ] 루노소프트 게임 1개로 전체 플로우 실행
-- [ ] 편집장 피드백 수렴
-- [ ] 프롬프트 튜닝
-- [ ] 템플릿 개선
-
-**예상 소요**: 1주 (피드백 반영 포함)
+**예상 소요**: 반나절 (리서치 시간)
 
 ---
 
 ## Phase 2: 보도자료 서비스 (대기)
 
+설계 참조: `03-service-design.md` 서비스 A
+
 ### 선행 과제
-- [ ] 보도자료 분석 DB 구축 (인디게임닷컴 기존 기사 + 업계 레퍼런스)
+- [ ] 보도자료 분석 DB (인디게임닷컴 기존 기사 + 업계 레퍼런스)
 - [ ] 편집장 스타일 시스템 프롬프트 정제
-- [ ] 매체 이메일 DB 완성 (`docs/06-media-database.md` 기반)
+- [ ] 매체 이메일 DB 완성 (`06-media-database.md` 기반)
 
 ### 주요 기능
 - [ ] AI 보도자료 초안 생성
 - [ ] 한→영 편집 번역
 - [ ] 편집장 검수 UI
-- [ ] 매체 이메일 자동 배포 시스템
+- [ ] 매체 이메일 자동 배포
 - [ ] indiegame.com 자동 게시 (WordPress REST API)
 - [ ] 배포 성과 트래킹
 
@@ -137,12 +116,14 @@ Phase 4: 해외 인디 확장   ⬜ 장기
 
 ## Phase 3: 번역 서비스 (대기)
 
+설계 참조: `03-service-design.md` 서비스 B
+
 ### 선행 과제
 - [ ] 게임 번역 용어/표현 DB 구축
 - [ ] 장르별 어체 매핑
 
 ### 주요 기능
-- [ ] Tier 1 10개 언어 번역
+- [ ] Tier 1 언어 번역 (EN/JP/ZH 우선)
 - [ ] 스토어 페이지 번역 + ASO 키워드 반영
 - [ ] 인게임 텍스트 번역 (XLSX/JSON/PO 지원)
 - [ ] LQA 체크리스트
@@ -153,28 +134,32 @@ Phase 4: 해외 인디 확장   ⬜ 장기
 
 - [ ] 웹사이트 영문화
 - [ ] 결제 수단 해외 대응
-- [ ] 해외 인디 커뮤니티 채널 확보
-- [ ] 영문 블로그 / 케이스 스터디
+- [ ] 해외 인디 커뮤니티 채널
+- [ ] 영문 블로그·케이스 스터디
 
 ---
 
-## 타임라인
+## 타임라인 (갱신판)
 
 ```
-2026 4월 2주차  ████                 Phase 0 + Phase 1 MVP ✅ (완료)
-2026 4월 3-4주  ░░░░████             Phase 1 관리자 백오피스 + 이메일
-2026 5월 1-2주  ░░░░░░░░████         Phase 1 AI 분석 엔진
-2026 5월 3-4주  ░░░░░░░░░░░░████     Phase 1 스크린샷 렌더러 + 베타
-2026 6월        ░░░░░░░░░░░░░░░░████ Phase 2 보도자료 (준비)
-2026 7월        ░░░░░░░░░░░░░░░░░░░░ Phase 2 런칭 + Phase 3 시작
+2026-04-12 ~ 04-13  ████████████████  Phase 0 + Phase 1 핵심 모듈 완성
+                                       (Stage 6·8·9 · Library 설계·구축)
+2026-04-14 ~        ░░░░████          Step 1 Library 실측 50개 구축
+                        ░░░░░░████    Step 2 Stage 8 Library 통합
+                            ░░░░░░████ Step 3 온디맨드 확장 UI
+                                ░░░░██ Step 4 인사이트 누적 루프
+                                  ░░██ Step 5 루노소프트 검증
+2026-05-06 ~                      ░██ Step 6 보조 기능 (이메일·대시보드)
+2026-06 ~                           ░░ Phase 2 보도자료 준비
+2026-07 ~                              Phase 2 런칭 + Phase 3 시작
 ```
 
 ---
 
 ## 우선순위 원칙
 
-1. **Phase 1 완성이 최우선** — AI 분석 없이는 진짜 서비스 아님
-2. **관리자 UI가 AI보다 먼저** — 주문 받고 처리할 방법이 있어야 AI 결과물도 의미있음
-3. **인증은 빨리** — `/api/admin/*` 무인증 URL 노출은 보안 리스크
-4. **이메일은 AI보다 먼저** — 접수 확인 없으면 고객 경험 깨짐
-5. **외주 디자이너 없음** — AI 자동 생성 + 가이드 fallback 조합 고수
+1. **Phase 1 Library 실측·통합이 최우선** — 설계 완성 후 실제 돌려봐야 서비스화
+2. **의뢰당 비용 절감(Library 통합) + 지식 누적(commission_driven)** 이 서비스 경제성 핵심
+3. **관리자 승인 게이트** 유지 — 자동 무한 확장 금지, 비용·품질 보호
+4. **ASO 는 게임성 판단이 아닌 부각 기술** — 평점·리뷰 테마 분석 금지 원칙 유지
+5. **IP·AAA 퍼블리셔 게임은 Library 수집 대상 아님** — 분석 가치 낮음 (브랜드 파워로 매출)

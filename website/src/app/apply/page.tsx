@@ -28,6 +28,7 @@ type FormState = {
   game_title: string;
   game_genre: string;
   store_url_android: string;
+  store_url_apple: string;
   target_markets: string[];
   // 특징
   feature_1: string;
@@ -54,6 +55,7 @@ const initialForm: FormState = {
   game_title: "",
   game_genre: "",
   store_url_android: "",
+  store_url_apple: "",
   target_markets: [],
   feature_1: "",
   feature_2: "",
@@ -88,7 +90,8 @@ export default function ApplyPage() {
     e.preventDefault();
     setError(null);
 
-    const hasStoreUrl = !!form.store_url_android.trim();
+    const hasStoreUrl =
+      !!form.store_url_android.trim() || !!form.store_url_apple.trim();
 
     // 클라이언트 사이드 검증 (서버에서도 재검증됨)
     // 스토어 URL이 있으면 파일은 선택, 없으면 필수
@@ -190,14 +193,20 @@ export default function ApplyPage() {
             <FeaturesSection
               values={form}
               onChange={updateForm}
-              storeUrlProvided={!!form.store_url_android.trim()}
+              storeUrlProvided={
+                !!form.store_url_android.trim() ||
+                !!form.store_url_apple.trim()
+              }
             />
             <div className="border-t border-border" />
 
             <FilesSection
               values={files}
               onChange={updateFiles}
-              storeUrlProvided={!!form.store_url_android.trim()}
+              storeUrlProvided={
+                !!form.store_url_android.trim() ||
+                !!form.store_url_apple.trim()
+              }
             />
             <div className="border-t border-border" />
 
@@ -218,9 +227,9 @@ export default function ApplyPage() {
                 {isSubmitting ? "전송 중..." : "신청하기"}
               </button>
               <p className="text-xs text-muted text-center mt-3">
-                제출 후 입력하신 이메일로 접수 확인 메일이 발송됩니다.
+                제출 후 주문번호와 다음 단계 안내가 표시됩니다.
                 <br />
-                5영업일 내에 결과물이 전달됩니다.
+                담당자가 1영업일 내에 직접 연락드리며, 5영업일 내에 결과물을 전달합니다.
               </p>
             </div>
           </form>

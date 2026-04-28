@@ -58,6 +58,7 @@ type Order = {
   game_title: string;
   game_genre: string | null;
   store_url_android: string | null;
+  store_url_apple: string | null;
   target_market: string | null;
   core_features: string | null;
   additional_notes: string | null;
@@ -85,7 +86,7 @@ export default async function OrderDetailPage({
     .select(
       `
       id, order_number, service_type, package_tier, game_title, game_genre,
-      store_url_android, target_market, core_features, additional_notes,
+      store_url_android, store_url_apple, target_market, core_features, additional_notes,
       status, price_krw, payment_status, payment_memo,
       due_date, delivered_at, completed_at, created_at,
       customers(id, name, email, studio_name, phone)
@@ -234,7 +235,7 @@ export default async function OrderDetailPage({
                   </dd>
                 </div>
                 <div className="flex gap-3">
-                  <dt className="w-24 text-muted shrink-0">스토어 URL</dt>
+                  <dt className="w-24 text-muted shrink-0">Google Play</dt>
                   <dd>
                     {order.store_url_android ? (
                       <a
@@ -244,6 +245,23 @@ export default async function OrderDetailPage({
                         className="text-accent-light hover:underline break-all text-xs"
                       >
                         {order.store_url_android}
+                      </a>
+                    ) : (
+                      <span className="text-muted">-</span>
+                    )}
+                  </dd>
+                </div>
+                <div className="flex gap-3">
+                  <dt className="w-24 text-muted shrink-0">App Store</dt>
+                  <dd>
+                    {order.store_url_apple ? (
+                      <a
+                        href={order.store_url_apple}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-accent-light hover:underline break-all text-xs"
+                      >
+                        {order.store_url_apple}
                       </a>
                     ) : (
                       <span className="text-muted">-</span>

@@ -17,6 +17,10 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { OrderInput } from "./schema";
 import { scrapeGooglePlay, type GooglePlayAppInfo } from "@/lib/scraper/google-play";
+import {
+  scrapeAppleAppStore,
+  type AppleAppStoreAppInfo,
+} from "@/lib/scraper/apple-app-store";
 import { ingestImagesFromUrls } from "@/lib/scraper/image-ingest";
 
 export type IncomingFile = {
@@ -28,6 +32,7 @@ export type CreateOrderResult = {
   order_id: string;
   order_number: string;
   scraped?: GooglePlayAppInfo;
+  scraped_apple?: AppleAppStoreAppInfo;
   ingested_file_count: number;
 };
 
@@ -97,31 +102,45 @@ async function createOrderRecord(
   customerId: string,
   input: OrderInput,
   priceKrw: number,
-  scraped: GooglePlayAppInfo | null
+  scraped: GooglePlayAppInfo | null,
+  scrapedApple: AppleAppStoreAppInfo | null
 ): Promise<{ order_id: string; order_number: string }> {
   const userFeatures = [input.feature_1, input.feature_2, input.feature_3]
     .filter((f) => f && f.trim())
     .join("\n");
 
-  // 사용자 미기재 시 스크랩된 소개문 앞부분을 fallback으로
+  // 사용자 미기재 시 스크랩된 소개문 앞부분을 fallback으로 (Google → Apple 순)
   const coreFeatures =
     userFeatures ||
     (scraped?.description
       ? scraped.description.slice(0, 1500)
-      : "(정보 없음 — 추후 보강 필요)");
+      : scrapedApple?.description
+        ? scrapedApple.description.slice(0, 1500)
+        : "(정보 없음 — 추후 보강 필요)");
 
   const noteBlocks: string[] = [];
   if (input.emphasis_notes) noteBlocks.push(`[강조] ${input.emphasis_notes}`);
   if (input.avoid_notes) noteBlocks.push(`[피할 점] ${input.avoid_notes}`);
+  // additional_notes 는 Stage 8 ASO 분석 프롬프트로 흘러감 — **평점·리뷰 수는 제외**
+  // (v2.6: 게임성·운영 신호는 ASO 분석 대상 아님). 평점은 관리자 UI·로그에서만 참조.
   if (scraped) {
     noteBlocks.push(
-      `[스토어 자동 수집]\n` +
+      `[Google Play 자동 수집]\n` +
         `- 제목: ${scraped.title}\n` +
         `- 개발사: ${scraped.developer}\n` +
         `- 장르: ${scraped.genre}\n` +
-        `- 평점: ${scraped.rating?.toFixed(2) ?? "-"} (${scraped.ratings_count ?? 0}개)\n` +
         `- 다운로드: ${scraped.installs ?? "-"}\n` +
         `- 스크린샷: ${scraped.screenshot_urls.length}장 자동 수집됨`
+    );
+  }
+  if (scrapedApple) {
+    noteBlocks.push(
+      `[Apple App Store 자동 수집]\n` +
+        `- 제목: ${scrapedApple.title}\n` +
+        `- 개발사: ${scrapedApple.developer}\n` +
+        `- 장르: ${scrapedApple.genre}\n` +
+        `- 버전: ${scrapedApple.version ?? "-"} (updated: ${scrapedApple.updated?.slice(0, 10) ?? "-"})\n` +
+        `- iPhone 스크린샷: ${scrapedApple.iphone_screenshot_urls.length}장 / iPad: ${scrapedApple.ipad_screenshot_urls.length}장 자동 수집됨`
     );
   }
   const additionalNotes = noteBlocks.join("\n\n") || null;
@@ -137,6 +156,7 @@ async function createOrderRecord(
       game_title: input.game_title,
       game_genre: input.game_genre,
       store_url_android: input.store_url_android || null,
+      store_url_apple: input.store_url_apple || null,
       core_features: coreFeatures,
       target_market: targetMarket,
       additional_notes: additionalNotes,
@@ -234,18 +254,27 @@ export async function createOrder(
 ): Promise<CreateOrderResult> {
   const admin = createAdminClient();
 
-  // 1. 스토어 URL이 있으면 먼저 스크랩 시도 (실패해도 주문은 진행)
-  let scraped: GooglePlayAppInfo | null = null;
-  if (input.store_url_android) {
-    try {
-      scraped = await scrapeGooglePlay(input.store_url_android);
-    } catch (e) {
-      console.warn(
-        "[orders] 스토어 스크랩 실패, 수동 진행:",
-        e instanceof Error ? e.message : e
-      );
-    }
-  }
+  // 1. 양 스토어 URL 있으면 병렬 스크랩 시도 (각각 실패해도 주문은 진행)
+  const [scraped, scrapedApple] = await Promise.all([
+    input.store_url_android
+      ? scrapeGooglePlay(input.store_url_android).catch((e) => {
+          console.warn(
+            "[orders] Google Play 스크랩 실패, 수동 진행:",
+            e instanceof Error ? e.message : e
+          );
+          return null;
+        })
+      : Promise.resolve(null),
+    input.store_url_apple
+      ? scrapeAppleAppStore(input.store_url_apple).catch((e) => {
+          console.warn(
+            "[orders] Apple App Store 스크랩 실패, 수동 진행:",
+            e instanceof Error ? e.message : e
+          );
+          return null;
+        })
+      : Promise.resolve(null),
+  ]);
 
   // 2. 고객
   const customerId = await upsertCustomer(admin, input);
@@ -256,7 +285,8 @@ export async function createOrder(
     customerId,
     input,
     priceKrw,
-    scraped
+    scraped,
+    scrapedApple
   );
 
   let ingestedFileCount = 0;
@@ -267,26 +297,55 @@ export async function createOrder(
       files.map((item, idx) => uploadUserFile(admin, order_id, item, idx))
     );
 
-    // 4b. 스크랩된 이미지 다운로드 + 저장
+    // 4b. 스크랩된 이미지 다운로드 + 저장 (Google Play + Apple App Store 각각)
     const scrapedRows: Awaited<ReturnType<typeof uploadUserFile>>[] = [];
+
+    const ingestJobs: Array<{
+      url: string;
+      category: "logo" | "screenshot";
+      suggestedName: string;
+    }> = [];
+
     if (scraped) {
-      const jobs = [
-        // 아이콘 1개
-        {
-          url: scraped.icon_url,
-          category: "logo" as const,
-          suggestedName: "store-icon",
-        },
-        // 스크린샷 전체
+      ingestJobs.push({
+        url: scraped.icon_url,
+        category: "logo",
+        suggestedName: "gplay-icon",
+      });
+      ingestJobs.push(
         ...scraped.screenshot_urls.map((url, idx) => ({
           url,
           category: "screenshot" as const,
-          suggestedName: `store-screenshot-${idx + 1}`,
-        })),
-      ];
+          suggestedName: `gplay-screenshot-${idx + 1}`,
+        }))
+      );
+    }
 
-      const ingested = await ingestImagesFromUrls(order_id, jobs);
+    if (scrapedApple) {
+      ingestJobs.push({
+        url: scrapedApple.icon_url,
+        category: "logo",
+        suggestedName: "apple-icon",
+      });
+      ingestJobs.push(
+        ...scrapedApple.iphone_screenshot_urls.map((url, idx) => ({
+          url,
+          category: "screenshot" as const,
+          suggestedName: `apple-iphone-screenshot-${idx + 1}`,
+        }))
+      );
+      // iPad 스크린샷은 참고용으로 `other` 카테고리에 저장
+      ingestJobs.push(
+        ...scrapedApple.ipad_screenshot_urls.map((url, idx) => ({
+          url,
+          category: "screenshot" as const,
+          suggestedName: `apple-ipad-screenshot-${idx + 1}`,
+        }))
+      );
+    }
 
+    if (ingestJobs.length > 0) {
+      const ingested = await ingestImagesFromUrls(order_id, ingestJobs);
       for (let i = 0; i < ingested.length; i++) {
         const img = ingested[i];
         scrapedRows.push({
@@ -314,6 +373,7 @@ export async function createOrder(
     order_id,
     order_number,
     scraped: scraped ?? undefined,
+    scraped_apple: scrapedApple ?? undefined,
     ingested_file_count: ingestedFileCount,
   };
 }

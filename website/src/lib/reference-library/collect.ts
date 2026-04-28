@@ -11,10 +11,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { randomUUID } from "crypto";
 import { toHighResUrl } from "@/lib/scraper/highres";
 import { getLangForCountry } from "@/lib/scraper/competitor-fetch";
-import {
-  fetchReviewSamples,
-  extractMonetizationHint,
-} from "@/lib/scraper/reviews";
+// v2.6 이후 리뷰·평점 테마는 ASO 분석 대상 아님 (`fetchReviewSamples` import 제거).
+// `extractMonetizationHint` 는 ASO 메시징 해석에 필요해 유지.
+import { extractMonetizationHint } from "@/lib/scraper/reviews";
 
 const GENRE_TO_GPLAY_CATEGORY: Record<string, string> = {
   puzzle: "GAME_PUZZLE",
@@ -27,6 +26,9 @@ const GENRE_TO_GPLAY_CATEGORY: Record<string, string> = {
   sports: "GAME_SPORTS",
   racing: "GAME_RACING",
   card: "GAME_CARD",
+  adventure: "GAME_ADVENTURE",
+  board: "GAME_BOARD",
+  word: "GAME_WORD",
 };
 
 const COLLECTION_BUCKET = "reference-library";
@@ -127,13 +129,7 @@ export async function collectReferenceGamesForGenre(
 
       const app = await gplay.app({ appId, country, lang });
 
-      // 리뷰 샘플 + 수익모델
-      const reviews = await fetchReviewSamples({
-        appId,
-        country,
-        lang,
-        total: 30,
-      });
+      // 수익모델 힌트만 추출. v2.6: 리뷰 수집 중단.
       const monetization = extractMonetizationHint(
         app as Parameters<typeof extractMonetizationHint>[0]
       );
@@ -159,7 +155,8 @@ export async function collectReferenceGamesForGenre(
         );
       }
 
-      // reference_games insert
+      // reference_games insert. `rating`·`ratings_count` 는 운영 메타로만 저장 (ASO 분석 입력 아님).
+      // `reviews_summary`·`reviews_collected_at` 은 v2.6 이후 수집 안 함 (dead column).
       const { data: gameRow, error: gameErr } = await admin
         .from("reference_games")
         .insert({
@@ -182,11 +179,6 @@ export async function collectReferenceGamesForGenre(
           collection_run_id: runId,
           monetization,
           video_url: app.video ?? null,
-          reviews_summary: {
-            sample_count: reviews.length,
-            samples: reviews,
-          },
-          reviews_collected_at: new Date().toISOString(),
           last_refreshed_at: new Date().toISOString(),
         })
         .select("id")
@@ -290,12 +282,7 @@ export async function collectSpecificGames(opts: {
 
       const app = await gplay.app({ appId, country, lang });
 
-      const reviews = await fetchReviewSamples({
-        appId,
-        country,
-        lang,
-        total: 30,
-      });
+      // 수익모델 힌트만 추출. v2.6: 리뷰 수집 중단.
       const monetization = extractMonetizationHint(
         app as Parameters<typeof extractMonetizationHint>[0]
       );
@@ -340,11 +327,6 @@ export async function collectSpecificGames(opts: {
           collection_run_id: runId,
           monetization,
           video_url: app.video ?? null,
-          reviews_summary: {
-            sample_count: reviews.length,
-            samples: reviews,
-          },
-          reviews_collected_at: new Date().toISOString(),
           last_refreshed_at: new Date().toISOString(),
         })
         .select("id")

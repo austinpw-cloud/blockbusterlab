@@ -1,10 +1,13 @@
 /**
  * 장르별 Top 게임 ASO 벤치마크 — AI 프롬프트에 주입할 요약 데이터.
  *
- * 원본: docs/ASO-bible-by-genre-2026.md
+ * 원본: docs/aso/99-archived/ASO-bible-by-genre-2026.md (아카이브됨)
  *
- * 향후: Supabase aso_benchmarks 테이블에서 동적으로 로드하도록 교체 예정.
- * MVP 단계에선 하드코딩으로 빠르게 검증.
+ * **우선순위 (v2.7)**: Library 주축 > 유사 게임 > 실시간 경쟁작 > **이 블록 (최하위 폴백)**.
+ * Library 가 구축되어 `library_patterns` 에 실제 데이터가 있으면 Opus 가 Library 를 우선 참고.
+ * 이 하드코딩은 Library 조회가 `fallback_level === "none"` 일 때 또는 과거 한국 시장 Top 감각 참고용.
+ *
+ * 향후: 완전 제거 후보. L1~L3 실행으로 `library_patterns` 가 충분히 채워지면 이 파일 dead code.
  */
 
 export type GenreBenchmark = {

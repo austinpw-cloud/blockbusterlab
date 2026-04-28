@@ -5,19 +5,31 @@
  *
  * 입력: multipart/form-data
  *   - 필드: customer_name, customer_email, customer_phone, studio_name,
- *           game_title, game_genre, store_url_android, target_markets[],
- *           feature_1/2/3, emphasis_notes, avoid_notes, package_id
+ *           game_title, game_genre,
+ *           store_url_android (Google Play URL, 선택),
+ *           store_url_apple (Apple App Store URL, 선택 — 둘 중 하나 이상 권장),
+ *           target_markets[], feature_1/2/3, emphasis_notes, avoid_notes, package_id
  *   - 파일: screenshots[], logo[], other[]
+ *     (store URL 이 하나도 없으면 screenshots 최소 5장 + logo 필수)
  *
  * 응답:
- *   200: { order_number: "BBL-20260412-0001", order_id: "..." }
+ *   200: { order_number: "BBL-20260412-0001", order_id: "...",
+ *          scraped_gplay, scraped_apple, ingested_file_count }
  *   400: { error: "검증 실패 메시지" }
  *   500: { error: "서버 에러 메시지" }
  */
 
 import { NextRequest, NextResponse } from "next/server";
 
-import { orderInputSchema, MAX_FILE_SIZE_BYTES, MIN_SCREENSHOT_COUNT } from "@/lib/aso/schema";
+import {
+  orderInputSchema,
+  MAX_FILE_SIZE_BYTES,
+  MIN_SCREENSHOT_COUNT,
+  MAX_SCREENSHOT_COUNT,
+  MAX_LOGO_COUNT,
+  MAX_OTHER_COUNT,
+  validateFilesForCategory,
+} from "@/lib/aso/schema";
 import { ASO_PACKAGES } from "@/lib/aso/constants";
 import { createOrder, type IncomingFile } from "@/lib/aso/orders";
 
@@ -50,6 +62,7 @@ export async function POST(req: NextRequest) {
       game_title: getString(formData, "game_title").trim(),
       game_genre: getString(formData, "game_genre"),
       store_url_android: getString(formData, "store_url_android").trim(),
+      store_url_apple: getString(formData, "store_url_apple").trim(),
       target_markets: getAllStrings(formData, "target_markets"),
       feature_1: getString(formData, "feature_1").trim(),
       feature_2: getString(formData, "feature_2").trim(),
@@ -90,9 +103,10 @@ export async function POST(req: NextRequest) {
     const logos = getFiles(formData, "logo");
     const others = getFiles(formData, "other");
 
-    const hasStoreUrl = !!input.store_url_android;
+    // 스토어 URL 하나라도 있으면 자동 수집 가능 — 파일 최소 요구 완화.
+    // 둘 다 없을 때만 원본 파일 필수.
+    const hasStoreUrl = !!input.store_url_android || !!input.store_url_apple;
 
-    // 스토어 URL 없으면 원본 파일 필수
     if (!hasStoreUrl) {
       if (screenshots.length < MIN_SCREENSHOT_COUNT) {
         return NextResponse.json(
@@ -110,6 +124,17 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // 카테고리별 MIME·개수 검증 (서버 enforce)
+    const ssError = validateFilesForCategory(screenshots, "screenshot", MAX_SCREENSHOT_COUNT);
+    if (ssError) return NextResponse.json({ error: ssError }, { status: 400 });
+
+    const logoError = validateFilesForCategory(logos, "logo", MAX_LOGO_COUNT);
+    if (logoError) return NextResponse.json({ error: logoError }, { status: 400 });
+
+    const otherError = validateFilesForCategory(others, "other", MAX_OTHER_COUNT);
+    if (otherError) return NextResponse.json({ error: otherError }, { status: 400 });
+
+    // 크기 검증
     const allFiles = [...screenshots, ...logos, ...others];
     const oversize = allFiles.find((f) => f.size > MAX_FILE_SIZE_BYTES);
     if (oversize) {
@@ -139,11 +164,21 @@ export async function POST(req: NextRequest) {
       ok: true,
       order_id: result.order_id,
       order_number: result.order_number,
-      scraped: result.scraped
+      scraped_gplay: result.scraped
         ? {
             title: result.scraped.title,
             genre: result.scraped.genre,
             screenshot_count: result.scraped.screenshot_urls.length,
+          }
+        : null,
+      scraped_apple: result.scraped_apple
+        ? {
+            title: result.scraped_apple.title,
+            genre: result.scraped_apple.genre,
+            iphone_screenshot_count:
+              result.scraped_apple.iphone_screenshot_urls.length,
+            ipad_screenshot_count:
+              result.scraped_apple.ipad_screenshot_urls.length,
           }
         : null,
       ingested_file_count: result.ingested_file_count,

@@ -30,7 +30,9 @@ export type GooglePlayAppInfo = {
   developer_website?: string;
   genre: string;            // 예: "RPG"
   genre_id?: string;        // 예: "GAME_ROLE_PLAYING"
+  /** ⚠ 운영 메타. ASO 분석 프롬프트 입력으로 사용 금지 (v2.6 리뷰·평점 원칙). 관리자 UI 표시·로그 용도만. */
   rating?: number;
+  /** ⚠ 운영 메타. ASO 분석 입력 금지. */
   ratings_count?: number;
   installs?: string;        // "100,000+"
   min_installs?: number;
@@ -45,9 +47,9 @@ export type GooglePlayAppInfo = {
   updated?: number;
   url: string;
 
-  /** 리뷰 샘플 (상·하 평점 혼합) */
+  /** ⚠ 리뷰 샘플. `includeReviews: true` 로 명시 요청 시에만 포함. ASO 분석 입력 금지. */
   reviews?: ReviewSample[];
-  /** 수익모델 힌트 */
+  /** 수익모델 힌트. ASO 메시징 해석에 사용 가능. */
   monetization?: {
     price?: number;
     currency?: string;
@@ -91,7 +93,7 @@ export async function scrapeGooglePlay(
 
   const lang = options?.lang ?? "ko";
   const country = options?.country ?? "kr";
-  const includeReviews = options?.includeReviews ?? true;
+  const includeReviews = options?.includeReviews ?? false;
 
   const app = await gplay.app({ appId, lang, country });
 

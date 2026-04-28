@@ -12,6 +12,7 @@ export type GameInfoValues = {
   game_title: string;
   game_genre: string;
   store_url_android: string;
+  store_url_apple: string;
   target_markets: string[];
 };
 
@@ -43,6 +44,18 @@ export function GameInfoSection({ values, onChange }: Props) {
           value={values.store_url_android}
           onChange={(e) => onChange({ store_url_android: e.target.value })}
           placeholder="https://play.google.com/store/apps/details?id=..."
+        />
+      </FormField>
+
+      <FormField
+        label="Apple App Store URL"
+        helper="iOS 에 출시된 경우 입력하시면 메타데이터·스크린샷을 자동 수집합니다. Google Play URL 과 둘 중 하나 또는 둘 다 가능."
+      >
+        <TextInput
+          type="url"
+          value={values.store_url_apple}
+          onChange={(e) => onChange({ store_url_apple: e.target.value })}
+          placeholder="https://apps.apple.com/kr/app/.../id..."
         />
       </FormField>
 

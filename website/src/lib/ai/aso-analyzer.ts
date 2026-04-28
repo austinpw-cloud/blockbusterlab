@@ -24,8 +24,11 @@ import {
   scrapeGooglePlay,
   extractAppIdFromUrl,
 } from "@/lib/scraper/google-play";
+import { scrapeAppleAppStore } from "@/lib/scraper/apple-app-store";
 import { fetchCompetitors } from "@/lib/scraper/competitor-fetch";
 import { fetchOrderVisualContext } from "./vision-context";
+import { queryLibrary } from "@/lib/reference-library/pattern-query";
+import { validateAsoOutput, type ValidationResult } from "./validate-aso-output";
 
 /**
  * AI 생성 결과 (v2 스키마와 일치).
@@ -46,21 +49,16 @@ export type AsoResult = {
       visual_language: string;
       gap_they_leave: string;
 
-      // 신규 축 (2026-04-13 확장) — "왜 Top인가"의 근거 체계
-      why_they_top?: string; // 설치수·평점 + 정성 판단 종합
-      core_hook?: string; // 메인 유인 요소 (성취/과시/수집/힐링 등)
-      emotional_appeal?: string; // 유저가 느끼는 감정 / 건드리는 욕구
-      community_signals?: {
-        rating_overall: string; // 높/중/낮 + 수치
-        praise_themes: string[]; // 리뷰에서 자주 나오는 칭찬 주제
-        complaint_themes: string[]; // 자주 나오는 불만
-      };
-      monetization_model?: string; // IAP · 광고 · 프리미엄 · 구독 등, ASO 메시징 영향
-      retention_promise?: string; // 계속 플레이하게 만드는 신호 (레벨·시즌·컬렉션)
+      // ASO 수법 축 (v2.6 원칙: 리뷰·평점 제거, 스토어 에셋 관점만)
+      aso_success_approach?: string; // 이 경쟁작이 ASO 를 어떻게 했길래 잘 작동했는지
+      core_hook?: string; // ASO 자산이 전달하는 메인 유인 요소
+      emotional_appeal?: string; // 스토어 자산이 유발하는 감정 + 유발 요소
+      monetization_alignment?: string; // 수익모델이 ASO 메시징에 반영되는 방식
+      retention_promise?: string; // ASO 자산에서 암시된 장기 플레이 유인
       icon_design_strategy?: string; // 아이콘 첫인상 전략
       screenshot_sequence_flow?: string; // 7장 슬롯 스토리텔링 요약
       description_hook?: string; // 첫 80/250자 hook 기법
-      direct_confrontation_risk?: string; // 이 경쟁작에 정면 승부하면 지는 이유
+      direct_confrontation_risk?: string; // ASO 메시징 정면 승부 시 지는 이유
     }>;
     white_space: string[];
   };
@@ -174,6 +172,8 @@ export type AsoResult = {
 export type GenerateResult = {
   deliverable_id: string;
   result: AsoResult;
+  /** Opus 출력 하드 룰 검증 결과. 관리자 UI 에 노출하고 운영자가 수동 편집 판단. */
+  validation: ValidationResult;
   usage: {
     input_tokens: number;
     output_tokens: number;
@@ -200,7 +200,7 @@ export async function generateAsoForOrder(
   const { data: order, error: orderError } = await admin
     .from("orders")
     .select(
-      "id, game_title, game_genre, store_url_android, core_features, target_market, additional_notes"
+      "id, game_title, game_genre, store_url_android, store_url_apple, core_features, target_market, additional_notes"
     )
     .eq("id", orderId)
     .single();
@@ -238,39 +238,78 @@ export async function generateAsoForOrder(
     MARKET_TO_COUNTRY[targetMarkets[0]?.toLowerCase()] ?? "kr";
 
   // ───────────────────────────────────────────────────────────────
-  // 3. 스토어 URL 최신 스크랩 (기준 국가)
+  // 3. 양 스토어 URL 최신 스크랩 (기준 국가, 병렬)
   // ───────────────────────────────────────────────────────────────
-  let scraped: Awaited<ReturnType<typeof scrapeGooglePlay>> | null = null;
   let selfAppId: string | null = null;
   if (order.store_url_android) {
     selfAppId = extractAppIdFromUrl(order.store_url_android);
-    try {
-      scraped = await scrapeGooglePlay(order.store_url_android, {
-        country: primaryCountry,
-        lang: primaryCountry === "kr" ? "ko" : primaryCountry === "jp" ? "ja" : "en",
-        includeReviews: true,
-      });
-    } catch (e) {
-      console.warn(
-        "[aso-analyzer] 본 게임 재스크랩 실패:",
-        e instanceof Error ? e.message : e
-      );
-    }
   }
 
+  const [scraped, scrapedApple] = await Promise.all([
+    order.store_url_android
+      ? scrapeGooglePlay(order.store_url_android, {
+          country: primaryCountry,
+          lang: primaryCountry === "kr" ? "ko" : primaryCountry === "jp" ? "ja" : "en",
+        }).catch((e) => {
+          console.warn(
+            "[aso-analyzer] Google Play 재스크랩 실패:",
+            e instanceof Error ? e.message : e
+          );
+          return null;
+        })
+      : Promise.resolve(null),
+    order.store_url_apple
+      ? scrapeAppleAppStore(order.store_url_apple, {
+          country: primaryCountry,
+        }).catch((e) => {
+          console.warn(
+            "[aso-analyzer] Apple App Store 재스크랩 실패:",
+            e instanceof Error ? e.message : e
+          );
+          return null;
+        })
+      : Promise.resolve(null),
+  ]);
+
   // ───────────────────────────────────────────────────────────────
-  // 4. 경쟁작 실시간 수집 (기준 국가 Top)
+  // 4. Library 조회 (주축 + 유사 게임) + 경쟁작 실시간 수집 병렬
   // ───────────────────────────────────────────────────────────────
   const genre = order.game_genre ?? "other";
+
+  // Library 조회를 먼저 실행해 경쟁작 수 결정 (있으면 5→3 축소로 중복 완화)
+  const libraryResult = await queryLibrary({
+    genre,
+    market: primaryCountry,
+  });
+
+  console.log(
+    `[aso-analyzer] Library fallback_level=${libraryResult.fallback_level}` +
+      (libraryResult.primary_pattern
+        ? ` / axis=${libraryResult.primary_pattern.axis_key_used} / confidence=${libraryResult.primary_pattern.confidence} / n=${libraryResult.primary_pattern.sample_size}`
+        : " / primary=none") +
+      ` / similar_games=${libraryResult.similar_games.length}`
+  );
+
+  if (libraryResult.fallback_level === "none") {
+    // 해당 장르의 library_patterns 가 전무한 극단 상태. Library 구축 전 또는 L3 미실행.
+    // 정상 운영에서는 발생하지 않아야 함.
+    console.warn(
+      `[aso-analyzer] ⚠ Library fallback_level=none — 장르 "${genre}" 에 library_patterns 0건. ` +
+        `L1~L3 파이프라인 실행으로 library_patterns 채우기 필요.`
+    );
+  }
+
+  const competitorLimit = libraryResult.primary_pattern ? 3 : 5;
   const competitors = await fetchCompetitors({
     genre,
     selfAppId,
     country: primaryCountry,
-    limit: 5,
-    includeReviews: true,
+    limit: competitorLimit,
   });
 
-  console.log(`[aso-analyzer] 경쟁작 ${competitors.length}개 수집 완료`);
+  console.log(
+    `[aso-analyzer] 경쟁작 ${competitors.length}개 수집 완료 (limit=${competitorLimit})`
+  );
 
   // ───────────────────────────────────────────────────────────────
   // 4. 업로드 이미지 Vision용 URL 수집 (최대 8장)
@@ -302,12 +341,22 @@ export async function generateAsoForOrder(
     scraped_description: scraped?.description,
     scraped_developer: scraped?.developer,
     scraped_genre: scraped?.genre,
-    scraped_rating: scraped?.rating,
     scraped_installs: scraped?.installs,
-    scraped_reviews: scraped?.reviews,
     scraped_monetization: scraped?.monetization,
+    // Apple 스크랩 데이터 — Apple 결과물 필드 품질에 중요
+    apple_scraped: scrapedApple
+      ? {
+          title: scrapedApple.title,
+          description: scrapedApple.description,
+          developer: scrapedApple.developer,
+          genre: scrapedApple.genre,
+          version: scrapedApple.version,
+          iphone_screenshot_count: scrapedApple.iphone_screenshot_urls.length,
+        }
+      : undefined,
     benchmark,
     competitors,
+    library: libraryResult,
   };
 
   const userMessage = buildAsoGenerationPrompt(input);
@@ -341,14 +390,45 @@ export async function generateAsoForOrder(
   }
 
   // ───────────────────────────────────────────────────────────────
-  // 8. deliverables 저장
+  // 7.5. Opus 출력 하드 룰 검증 (Q1)
+  // 스토어 필드 길이·키워드·스크린샷 슬롯 등 검증. 실패해도 저장·반환은 진행 —
+  // 관리자 UI 가 violations 를 표시해 운영자가 수동 편집 판단.
+  // ───────────────────────────────────────────────────────────────
+  const validation = validateAsoOutput(result);
+  if (validation.error_count > 0) {
+    console.warn(
+      `[aso-analyzer] ⚠ 하드 룰 error ${validation.error_count}건, warning ${validation.warning_count}건, info ${validation.info_count}건`
+    );
+    for (const v of validation.violations.filter((x) => x.severity === "error")) {
+      console.warn(`  [error] ${v.field}: ${v.message}`);
+    }
+  } else if (validation.warning_count > 0) {
+    console.log(
+      `[aso-analyzer] 하드 룰 warning ${validation.warning_count}건, info ${validation.info_count}건`
+    );
+  } else {
+    console.log(`[aso-analyzer] 하드 룰 검증 clean`);
+  }
+
+  // ───────────────────────────────────────────────────────────────
+  // 8. deliverables 저장 (validation 메타 포함)
   // ───────────────────────────────────────────────────────────────
   const { data: deliverable, error: deliverableError } = await admin
     .from("deliverables")
     .insert({
       order_id: orderId,
       type: "aso_analysis_report",
-      content: result as unknown as Record<string, unknown>,
+      content: {
+        ...result,
+        _meta: {
+          validation, // UI 에서 필드별 violations 렌더
+          library_state: {
+            fallback_level: libraryResult.fallback_level,
+            primary_axis_key: libraryResult.primary_pattern?.axis_key_used ?? null,
+            similar_games_count: libraryResult.similar_games.length,
+          },
+        },
+      } as unknown as Record<string, unknown>,
       status: "draft",
     })
     .select("id")
@@ -361,6 +441,7 @@ export async function generateAsoForOrder(
   return {
     deliverable_id: deliverable.id,
     result,
+    validation,
     usage: {
       input_tokens: completion.input_tokens,
       output_tokens: completion.output_tokens,

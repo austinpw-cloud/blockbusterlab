@@ -127,6 +127,8 @@ export function FileDropzone({
               className="flex items-center gap-3 px-3 py-2 bg-background border border-border rounded-lg"
             >
               {isImage(file) && (
+                // 업로드 프리뷰 (blob URL). next/image 는 외부·blob 최적화 가치 없음.
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={URL.createObjectURL(file)}
                   alt=""

@@ -199,7 +199,7 @@ export async function fetchCompetitors(opts: {
   const country = opts.country ?? "kr";
   const lang = getLangForCountry(country);
   const limit = opts.limit ?? 5;
-  const includeReviews = opts.includeReviews ?? true;
+  const includeReviews = opts.includeReviews ?? false;
 
   // 1. 장르 Top
   const topIds = await fetchTopAppIdsByGenre(opts.genre, 8, country);

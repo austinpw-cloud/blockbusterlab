@@ -42,9 +42,9 @@ export default async function SubmittedPage({ params }: { params: Params }) {
           <div className="p-5 rounded-lg bg-surface border border-border">
             <h3 className="font-semibold mb-2">다음 단계</h3>
             <ol className="space-y-2 text-muted list-decimal list-inside">
-              <li>입력하신 이메일로 접수 확인 메일이 발송됩니다.</li>
+              <li>담당자가 1영업일 내 입력하신 연락처(이메일·휴대폰)로 직접 연락드립니다.</li>
               <li>담당 편집자가 자료를 검토하고 분석을 시작합니다.</li>
-              <li>5영업일 내에 완성된 결과물이 이메일로 전달됩니다.</li>
+              <li>5영업일 내에 완성된 결과물을 담당자가 직접 전달합니다.</li>
               <li>전달 후 14일 이내 2회까지 무료 수정 가능합니다.</li>
               <li>적용 30일 후 무료 후속 점검이 진행됩니다.</li>
             </ol>

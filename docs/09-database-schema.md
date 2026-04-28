@@ -1,12 +1,30 @@
-# 데이터베이스 스키마 설계
+# 데이터베이스 스키마 설계 (개요)
 
-> **대상 DB**: Supabase (PostgreSQL 15+)
-> **Phase**: Phase 1 (ASO 서비스 기준)
-> **확장성**: Phase 2/3(보도자료/번역) 추가 가능하도록 설계
+> **역할 재정의 (2026-04-13)**: 본 문서는 **초기 스키마 설계 아이디어** 와 **high-level 개요** 만 담는다. 실제 적용된 스키마·제약·RLS 정책은 아래가 **Source of Truth**:
+>
+> **→ `website/supabase/migrations/001_initial_schema.sql` ~ `006_library_patterns_and_insights.sql`**
+>
+> 본 문서가 낡았을 때 우선순위는 migrations 파일. 본 문서는 설계 의도·ER 관계 파악용.
+>
+> ## 마이그레이션 파일 요약
+>
+> | 번호 | 파일 | 핵심 내용 |
+> |---|---|---|
+> | 001 | initial_schema | `customers`·`admin_users`·`orders`·`order_files`·`deliverables`·`revision_requests`·`aso_benchmarks` 등 핵심 테이블 + RLS |
+> | 002 | seed_admin | 관리자 계정 시드 |
+> | 003 | reference_library | `reference_games`·`reference_screenshots`·`genre_playbooks` + RLS |
+> | 004 | upload_materials_guide | `deliverable_type` enum 에 `upload_materials_guide` 추가 |
+> | 005 | reference_library_extensions | `reference_games.country` + 복합 UNIQUE · `aso_analysis`·`reviews_summary`·`monetization`·`video_url` · `last_refreshed_at` |
+> | 006 | library_patterns_and_insights | `reference_games` 축 태깅 (selection_basis·target_markets·monetization_model·studio_size·icon_analysis·text_analysis) + `library_patterns` 테이블 |
+>
+> ## 초기 설계와 실제의 주요 차이
+>
+> - ❌ `aso_benchmarks` 단일 테이블 (초기 기획) → ✅ `reference_games` + `reference_screenshots` + `library_patterns` 3분리 (실제). 설계 근거는 `docs/12-library-analysis-design.md`.
+> - 이하 본문은 초기 기획 내용 그대로 보존. 참고용으로만 읽을 것.
 
 ---
 
-## 테이블 구조 개요
+## 테이블 구조 개요 (초기 기획)
 
 ```
 ┌─────────────────┐       ┌─────────────────┐

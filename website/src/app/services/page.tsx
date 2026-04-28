@@ -19,7 +19,7 @@ const services: Service[] = [
     title: "ASO 분석 & 최적화",
     subtitle: "App Store Optimization",
     description:
-      "Google Play 스토어 링크만 전달하면, 장르별 Top 게임 벤치마크와 비교 분석해 바로 적용 가능한 제목 · 서브타이틀 · 소개문구 · 키워드 · 스크린샷 완성본을 5영업일 내에 전달합니다.",
+      "Google Play 또는 Apple App Store 링크만 전달하면, 장르별 Top 게임 벤치마크와 비교 분석해 바로 적용 가능한 제목 · 서브타이틀 · 소개문구 · 키워드 · 스크린샷 완성본을 5영업일 내에 전달합니다. 양 스토어 모두 출시된 경우 각 스토어 필드 구조에 맞춰 별도 설계합니다.",
     features: [
       {
         title: "스토어 URL만으로 자동 수집",
