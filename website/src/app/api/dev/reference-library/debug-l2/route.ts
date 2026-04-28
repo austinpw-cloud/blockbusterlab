@@ -15,7 +15,7 @@ import {
 } from "@/lib/reference-library/analyze-game-prompt";
 
 export const runtime = "nodejs";
-export const maxDuration = 600;
+export const maxDuration = 300;
 
 export async function GET(req: NextRequest) {
   if (process.env.NODE_ENV === "production") {

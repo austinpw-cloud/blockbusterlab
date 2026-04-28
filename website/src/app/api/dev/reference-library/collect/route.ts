@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { collectReferenceGamesForGenre } from "@/lib/reference-library/collect";
 
 export const runtime = "nodejs";
-export const maxDuration = 800;
+export const maxDuration = 300;
 
 export async function GET(req: NextRequest) {
   if (process.env.NODE_ENV === "production") {

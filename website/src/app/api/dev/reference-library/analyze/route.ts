@@ -19,7 +19,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { runPipeline, type PipelineOptions } from "@/lib/reference-library/orchestrator";
 
 export const runtime = "nodejs";
-export const maxDuration = 800;
+export const maxDuration = 300;
 
 function parseLevels(s: string | null): Array<1 | 2 | 3> {
   if (!s) return [1];
