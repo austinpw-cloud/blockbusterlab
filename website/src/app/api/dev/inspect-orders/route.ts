@@ -34,9 +34,10 @@ export async function GET(req: NextRequest) {
       .order("file_type");
 
     const { data: analyses } = await admin
-      .from("aso_analyses")
-      .select("id, version, generated_at, model_used")
+      .from("deliverables")
+      .select("id, type, version, generated_at, status")
       .eq("order_id", orderId)
+      .eq("type", "aso_analysis_report")
       .order("generated_at", { ascending: false });
 
     return NextResponse.json({
