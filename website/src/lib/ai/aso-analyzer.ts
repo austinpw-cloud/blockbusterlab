@@ -184,14 +184,27 @@ export type GenerateResult = {
   };
 };
 
-/** Opus 4.6: $15/1M input, $75/1M output (2026-04) */
-function estimateCostUsd(inputTokens: number, outputTokens: number): number {
-  return (inputTokens / 1_000_000) * 15 + (outputTokens / 1_000_000) * 75;
+/** 모델별 단가 ($/1M tokens, 2026-04 기준) */
+const MODEL_PRICING: Record<string, { input: number; output: number }> = {
+  "claude-opus-4-6": { input: 15, output: 75 },
+  "claude-sonnet-4-6": { input: 3, output: 15 },
+};
+
+function estimateCostUsd(
+  model: string,
+  inputTokens: number,
+  outputTokens: number
+): number {
+  const p = MODEL_PRICING[model] ?? MODEL_PRICING["claude-opus-4-6"];
+  return (inputTokens / 1_000_000) * p.input + (outputTokens / 1_000_000) * p.output;
 }
 
 export async function generateAsoForOrder(
-  orderId: string
+  orderId: string,
+  options: { model?: "opus" | "sonnet" } = {}
 ): Promise<GenerateResult> {
+  const modelId =
+    options.model === "sonnet" ? MODELS.SONNET : MODELS.OPUS;
   const admin = createAdminClient();
 
   // ───────────────────────────────────────────────────────────────
@@ -362,15 +375,15 @@ export async function generateAsoForOrder(
   const userMessage = buildAsoGenerationPrompt(input);
 
   // ───────────────────────────────────────────────────────────────
-  // 6. Opus 4.6 호출 (Vision 포함)
+  // 6. LLM 호출 (Vision 포함). 기본 Opus, 옵션으로 Sonnet 가능
   // ───────────────────────────────────────────────────────────────
   const completion = await complete({
-    model: MODELS.OPUS,
+    model: modelId,
     system: ASO_SYSTEM_PROMPT,
     userMessage,
     images,
-    maxTokens: 32000, // Opus 4.6 상한 근접 — 품질 우선이라 충분히 허용
-    temperature: 0.6, // 품질 일관성을 위해 약간 낮춤
+    maxTokens: 32000,
+    temperature: 0.6,
   });
 
   // ───────────────────────────────────────────────────────────────
@@ -445,8 +458,9 @@ export async function generateAsoForOrder(
     usage: {
       input_tokens: completion.input_tokens,
       output_tokens: completion.output_tokens,
-      model: MODELS.OPUS,
+      model: modelId,
       approx_cost_usd: estimateCostUsd(
+        modelId,
         completion.input_tokens,
         completion.output_tokens
       ),

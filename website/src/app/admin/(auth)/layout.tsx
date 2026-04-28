@@ -39,6 +39,30 @@ export default async function AdminAuthLayout({
               >
                 주문 관리
               </Link>
+              <Link
+                href="/admin/deliverables"
+                className="text-muted hover:text-foreground transition"
+              >
+                결과물
+              </Link>
+              <Link
+                href="/admin/library"
+                className="text-muted hover:text-foreground transition"
+              >
+                Library
+              </Link>
+              <Link
+                href="/admin/customers"
+                className="text-muted hover:text-foreground transition"
+              >
+                고객
+              </Link>
+              <Link
+                href="/admin/stats"
+                className="text-muted hover:text-foreground transition"
+              >
+                통계
+              </Link>
             </nav>
             <div className="flex items-center gap-4 text-xs">
               <span className="text-muted">

@@ -499,29 +499,16 @@ export async function generateScreenshotsForOrder(
     analysis_summary: summarize(s.analysis),
   }));
 
-  // 레퍼런스 이미지는 Vision 입력용으로 일부만 signed URL 붙임
-  const sampleShots = coverage.screenshots.slice(0, 6);
-  const refImagesSigned = await Promise.all(
-    sampleShots.map(async (s) => {
-      const { data } = await admin.storage
-        .from("reference-library")
-        .createSignedUrl(s.storage_path, 3600);
-      return {
-        url: data?.signedUrl ?? "",
-        label: `REF ${s.game_title} slot ${s.slot_number}`,
-      };
-    })
-  );
-  const referenceImages = refImagesSigned.filter((r) => r.url);
-
-  // 2. Judge
+  // L1 분석 결과(JSON)에 슬롯·layout·color·what_makes_it_work 등 풍부한
+  // 패턴 정보가 이미 추출돼 있어 Vision 재첨부는 비용·저장만 차지하고
+  // 품질 기여 미미. referenceSummaries(JSON 요약) 만으로 Judge 수행.
   const judgment = await judgeUploadedMaterials({
     orderId,
     game_title: order.game_title,
     game_genre: order.game_genre ?? "other",
     analysis,
     referenceScreenshots: coverage.screenshots,
-    referenceSignedUrls: referenceImages,
+    referenceSignedUrls: [],
   });
 
   const libraryJudgmentCost = coverage.judgment_cost_usd;

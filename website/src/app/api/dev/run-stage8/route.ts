@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
   const appId = sp.get("app_id");
   const genre = sp.get("genre") ?? "casual";
   const market = sp.get("market") ?? "korea";
+  const modelOpt = sp.get("model") === "sonnet" ? "sonnet" : "opus";
 
   if (!appId) {
     return NextResponse.json({ error: "app_id required" }, { status: 400 });
@@ -80,7 +81,7 @@ export async function GET(req: NextRequest) {
 
   // Stage 8 분석 실행
   try {
-    const result = await generateAsoForOrder(order.id);
+    const result = await generateAsoForOrder(order.id, { model: modelOpt });
     return NextResponse.json({
       ok: true,
       order: { id: order.id, order_number: order.order_number },
