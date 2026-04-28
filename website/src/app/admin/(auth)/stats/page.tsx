@@ -6,6 +6,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { GAME_GENRES } from "@/lib/aso/constants";
+import { isTestEmail } from "@/lib/admin/test-data";
 
 const GENRE_LABEL = Object.fromEntries(GAME_GENRES.map((g) => [g.id, g.label]));
 
@@ -22,12 +23,14 @@ type OrderRow = {
   created_at: string;
   delivered_at: string | null;
   completed_at: string | null;
+  customers: { email: string } | null;
 };
 
 type DeliverableRow = {
   type: string;
   generated_at: string | null;
   content: { _meta?: { model?: string; approx_cost_usd?: number } } | null;
+  orders: { customers: { email: string } | null } | null;
 };
 
 export default async function StatsPage() {
@@ -37,15 +40,26 @@ export default async function StatsPage() {
     admin
       .from("orders")
       .select(
-        "id, status, game_genre, package_tier, price_krw, created_at, delivered_at, completed_at"
+        `id, status, game_genre, package_tier, price_krw, created_at, delivered_at, completed_at,
+         customers(email)`
       ),
     admin
       .from("deliverables")
-      .select("type, generated_at, content"),
+      .select(`type, generated_at, content,
+               orders(customers(email))`),
   ]);
 
-  const orderRows = (orders ?? []) as OrderRow[];
-  const deliverableRows = (deliverables ?? []) as DeliverableRow[];
+  // 테스트 고객 필터 — 운영 통계만
+  const allOrders = (orders ?? []) as unknown as OrderRow[];
+  const allDeliverables = (deliverables ?? []) as unknown as DeliverableRow[];
+  const orderRows = allOrders.filter(
+    (o) => !isTestEmail(o.customers?.email)
+  );
+  const deliverableRows = allDeliverables.filter(
+    (d) => !isTestEmail(d.orders?.customers?.email)
+  );
+  const testOrderCount = allOrders.length - orderRows.length;
+  const testDeliverableCount = allDeliverables.length - deliverableRows.length;
 
   // 의뢰 통계
   const totalOrders = orderRows.length;
@@ -105,7 +119,12 @@ export default async function StatsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold mb-2">통계 대시보드</h1>
         <p className="text-sm text-muted">
-          누적 의뢰 · 매출 · 처리시간 · 모델별 비용.
+          운영 누적 의뢰 · 매출 · 처리시간 · 모델별 비용.
+          {(testOrderCount > 0 || testDeliverableCount > 0) && (
+            <span className="ml-2 text-zinc-500">
+              (테스트 의뢰 {testOrderCount}건 · 결과물 {testDeliverableCount}건 제외)
+            </span>
+          )}
         </p>
       </div>
 

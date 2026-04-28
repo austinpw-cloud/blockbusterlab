@@ -8,6 +8,7 @@
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { GAME_GENRES } from "@/lib/aso/constants";
+import { isTestEmail } from "@/lib/admin/test-data";
 
 const GENRE_LABEL = Object.fromEntries(GAME_GENRES.map((g) => [g.id, g.label]));
 
@@ -56,7 +57,7 @@ type DeliverableRow = {
     game_title: string;
     game_genre: string | null;
     status: string;
-    customers: { name: string; studio_name: string } | null;
+    customers: { name: string; studio_name: string; email: string } | null;
   } | null;
 };
 
@@ -81,7 +82,7 @@ export default async function DeliverablesPage({
     .select(
       `id, order_id, type, status, version, generated_at, content,
        orders(order_number, game_title, game_genre, status,
-              customers(name, studio_name))`
+              customers(name, studio_name, email))`
     )
     .order("generated_at", { ascending: false })
     .limit(100);
@@ -185,8 +186,14 @@ export default async function DeliverablesPage({
                 const meta = d.content?._meta;
                 const typeColor =
                   TYPE_BADGE_COLOR[d.type] ?? "bg-zinc-500/15 text-zinc-300";
+                const isTest = isTestEmail(order?.customers?.email);
                 return (
-                  <tr key={d.id} className="hover:bg-background/30 transition">
+                  <tr
+                    key={d.id}
+                    className={`hover:bg-background/30 transition ${
+                      isTest ? "opacity-50" : ""
+                    }`}
+                  >
                     <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">
                       {formatDate(d.generated_at)}
                     </td>
@@ -194,8 +201,13 @@ export default async function DeliverablesPage({
                       {order?.order_number ?? "-"}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="font-medium">
+                      <div className="font-medium flex items-center gap-2">
                         {order?.game_title ?? "-"}
+                        {isTest && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-zinc-500/20 text-zinc-400 font-mono">
+                            TEST
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-muted">
                         {order?.game_genre

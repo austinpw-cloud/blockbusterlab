@@ -6,6 +6,7 @@
 
 import Link from "next/link";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isTestEmail } from "@/lib/admin/test-data";
 
 function formatKRW(krw: number | null): string {
   if (krw == null || krw === 0) return "-";
@@ -57,14 +58,19 @@ export default async function CustomersPage() {
 
   const rows = (data ?? []) as CustomerRow[];
 
-  // 누적 통계
-  const totalCustomers = rows.length;
-  const totalOrders = rows.reduce((sum, c) => sum + (c.orders?.length ?? 0), 0);
-  const totalRevenue = rows.reduce(
+  // 운영 통계는 테스트 고객 제외
+  const realRows = rows.filter((c) => !isTestEmail(c.email));
+  const totalCustomers = realRows.length;
+  const totalOrders = realRows.reduce(
+    (sum, c) => sum + (c.orders?.length ?? 0),
+    0
+  );
+  const totalRevenue = realRows.reduce(
     (sum, c) =>
       sum + (c.orders ?? []).reduce((s, o) => s + (o.price_krw ?? 0), 0),
     0
   );
+  const testCount = rows.length - realRows.length;
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
@@ -81,12 +87,17 @@ export default async function CustomersPage() {
         </div>
       )}
 
-      {/* 요약 */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <SummaryCard label="고객" value={totalCustomers} />
-        <SummaryCard label="누적 의뢰" value={totalOrders} />
-        <SummaryCard label="누적 매출" value={formatKRW(totalRevenue)} />
+      {/* 요약 — 테스트 고객 제외 */}
+      <div className="grid grid-cols-3 gap-4 mb-3">
+        <SummaryCard label="고객 (운영)" value={totalCustomers} />
+        <SummaryCard label="누적 의뢰 (운영)" value={totalOrders} />
+        <SummaryCard label="누적 매출 (운영)" value={formatKRW(totalRevenue)} />
       </div>
+      {testCount > 0 && (
+        <p className="text-xs text-muted mb-6">
+          테스트 고객 {testCount}건 통계 제외 (TEST 배지 표시).
+        </p>
+      )}
 
       {/* 고객 목록 */}
       <div className="bg-surface border border-border rounded-xl overflow-hidden">
@@ -122,10 +133,23 @@ export default async function CustomersPage() {
                 const latest = orders.sort((a, b) =>
                   b.created_at.localeCompare(a.created_at)
                 )[0];
+                const isTest = isTestEmail(c.email);
                 return (
-                  <tr key={c.id} className="hover:bg-background/30 transition">
+                  <tr
+                    key={c.id}
+                    className={`hover:bg-background/30 transition ${
+                      isTest ? "opacity-60" : ""
+                    }`}
+                  >
                     <td className="px-4 py-3">
-                      <div className="font-medium">{c.name}</div>
+                      <div className="font-medium flex items-center gap-2">
+                        {c.name}
+                        {isTest && (
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-zinc-500/20 text-zinc-400 font-mono">
+                            TEST
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-muted">
                         {c.studio_name}
                       </div>
