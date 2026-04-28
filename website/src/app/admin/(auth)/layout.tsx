@@ -63,6 +63,12 @@ export default async function AdminAuthLayout({
               >
                 통계
               </Link>
+              <Link
+                href="/admin/settings"
+                className="text-muted hover:text-foreground transition"
+              >
+                설정
+              </Link>
             </nav>
             <div className="flex items-center gap-4 text-xs">
               <span className="text-muted">
