@@ -12,6 +12,7 @@
 
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logger } from "@/lib/logger";
 import { complete, parseJsonResponse, type ImageRef } from "./client";
 import { MODELS } from "./models";
 import {
@@ -206,6 +207,8 @@ export async function generateAsoForOrder(
   const modelId =
     options.model === "sonnet" ? MODELS.SONNET : MODELS.OPUS;
   const admin = createAdminClient();
+  const log = logger.child({ stage: "aso", orderId, model: modelId });
+  log.info("stage8.start");
 
   // ───────────────────────────────────────────────────────────────
   // 1. 주문 조회
@@ -448,24 +451,35 @@ export async function generateAsoForOrder(
     .single();
 
   if (deliverableError || !deliverable) {
+    log.error({ err: deliverableError?.message }, "stage8.persist_failed");
     throw new Error(`결과 저장 실패: ${deliverableError?.message}`);
   }
 
+  const usage = {
+    input_tokens: completion.input_tokens,
+    output_tokens: completion.output_tokens,
+    model: modelId,
+    approx_cost_usd: estimateCostUsd(
+      modelId,
+      completion.input_tokens,
+      completion.output_tokens
+    ),
+    competitor_count: competitors.length,
+    image_count: images.length,
+  };
+  log.info(
+    {
+      deliverableId: deliverable.id,
+      ...usage,
+      validation_errors: validation.error_count,
+      validation_warnings: validation.warning_count,
+    },
+    "stage8.done"
+  );
   return {
     deliverable_id: deliverable.id,
     result,
     validation,
-    usage: {
-      input_tokens: completion.input_tokens,
-      output_tokens: completion.output_tokens,
-      model: modelId,
-      approx_cost_usd: estimateCostUsd(
-        modelId,
-        completion.input_tokens,
-        completion.output_tokens
-      ),
-      competitor_count: competitors.length,
-      image_count: images.length,
-    },
+    usage,
   };
 }

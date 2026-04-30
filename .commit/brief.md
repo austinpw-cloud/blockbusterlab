@@ -10,8 +10,8 @@ TARGET_USER: Korean indie game studios (initial wedge: Lunosoft and Indiegame.co
 RUNTIME: Node 20 + TypeScript 5 (per .github/workflows/ci.yml + package.json)
 FRONTEND: Next.js 16.2.3 (App Router) + React 19.2 + Tailwind 4 + framer-motion 12
 BACKEND: Next.js Route Handlers on Vercel Serverless (Hobby, maxDuration ≤ 300s) + Supabase Postgres; no separate server
-DATABASE: Supabase Postgres · 11 tables across migrations 001–008 (reference_games, reference_screenshots, genre_playbooks, customers, admin_users, orders, order_files, deliverables, revision_requests, aso_benchmarks, library_patterns) · RLS present in migrations
-INFRA: Vercel (Root Directory `website`, Hobby plan) · GitHub Actions CI (tsc --noEmit + next build with dummy env) · GoDaddy domain blockbusterlab.com · auto-deploy on push to main
+DATABASE: Supabase Postgres · 11 tables across migrations 001–009 (reference_games, reference_screenshots, genre_playbooks, customers, admin_users, orders, order_files, deliverables, revision_requests, aso_benchmarks, library_patterns) · RLS present in migrations · migration 009 adds 3 missing FK indexes (assigned_editor_id, approved_by, requested_by)
+INFRA: Vercel (Root Directory `website`, Hobby plan) · GitHub Actions CI (tsc --noEmit + next build with dummy env) · GoDaddy domain blockbusterlab.com · auto-deploy on push to main · structured logging via `pino` wired into Stage 8/9 entry+exit (`src/lib/logger.ts`)
 AI_LAYER: LLM-based ASO analysis (Claude Opus for Stage 8 + L2/L3 pattern synthesis, Sonnet+Vision for L1 icon/text/screenshot tagging, used as Stage 9 judge + overlay designer); no AI image generation by policy — overlays only
 EXTERNAL_API: Anthropic Messages API · google-play-scraper (Play Store metadata + reviews) · custom Apple App Store scraper · puppeteer (composite rendering) · sharp (image metadata)
 AUTH: Supabase Auth magic link + admin_users table allowlist (auto-binds auth_user_id on first login); customer-facing apply flow is unauthenticated
@@ -89,13 +89,15 @@ VERIFIED_CLAIMS:
 UNVERIFIABLE_CLAIMS:
 - That blockbusterlab.com is currently serving traffic (README claims it; not fetched in this session)
 - "90 reference games / 13 axes" — claimed in README and memory but I did not run a count query against the live DB
-- "~$2.5 per order" — token-cost estimate, not measured against a live invoice
+- "~$2.5 per order" — token-cost estimate based on `MODEL_PRICING` constants in `aso-analyzer.ts`, not measured against a live invoice
 - Resend email integration — `RESEND_API_KEY` is referenced in env files but no `resend` package import or send call exists in the codebase, so email delivery is currently `mailto:` links only despite README listing Resend in infra
 - Whether GitHub Actions runs are actually passing on `main` (the workflow file exists; I did not check `gh run list`)
 - Whether the Lunosoft test order produced a customer-acceptable deliverable — that's a qualitative judgement made by the human, not visible in code
+- Genre generalization — pipeline pressure-tested on exactly one game (puzzle/casual hybrid). Behaviour on RPG / hyper-casual / strategy is unproven; the `next_blocker` batch run has not yet been built
+- Real paying customer count — zero verifiable from code; only 5 internal test emails in `TEST_CUSTOMER_EMAILS`
 DIVERGENCES:
 - README lists Resend as part of infra; code has no Resend integration. I treated Resend as "env-configured, not wired" rather than parroting the README claim.
 - Project memory says "운영 진입 완료 (2026-04-29)" but the repo has no real-customer orders visible — only test-data emails. The brief reflects code state, not the optimistic memory note.
 - The user's prompt asked me not to mention which AI tool was used to build the project; I followed that and did not name the coding assistant in any answer.
 - No template sections were removed or biased; the user did not steer answers during this run.
-CONFIDENCE_SCORE: 7 — stack, schema, commit-level failures, decisions, and delegation are grounded in files I read this session. Numbers like "$2.5/order", "90 games", and the deployment status are repeated from README/memory rather than re-measured, and the AI/Human percentage split is an informed estimate, not a measurement.
+CONFIDENCE_SCORE: 6 — stack, schema, commit-level failures, decisions, and delegation are grounded in files I read this session. Numbers like "$2.5/order", "90 games", and the deployment status are repeated from README/memory rather than re-measured. The AI/Human percentage split is an informed estimate, not a measurement. Genre generalization, real-customer outcomes, and end-to-end production reliability remain unproven — those gaps deliberately keep this score below 8.

@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="630" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0f0e1a"/>
+      <stop offset="0.55" stop-color="#1a1432"/>
+      <stop offset="1" stop-color="#2a1758"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a78bfa"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.85" cy="0.15" r="0.7">
+      <stop offset="0" stop-color="#7c3aed" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#7c3aed" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="40"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+
+  <!-- Accent decorative blur -->
+  <circle cx="180" cy="540" r="160" fill="#7c3aed" fill-opacity="0.18" filter="url(#soft)"/>
+
+  <!-- B Logo -->
+  <g transform="translate(80, 90)">
+    <rect width="96" height="96" rx="22" fill="url(#accent)"/>
+    <path
+      d="M30 24h22.2c8.55 0 13.8 4.5 13.8 11.7 0 4.5-2.55 7.95-6.3 9.45v.3c5.1 1.35 8.1 5.1 8.1 10.5 0 7.65-5.85 13.05-15 13.05H30V24zm20.1 17.85c4.2 0 6.75-2.1 6.75-5.55s-2.55-5.55-6.75-5.55h-10.2v11.1h10.2zm1.65 19.35c4.65 0 7.5-2.4 7.5-6.3s-2.85-6.3-7.5-6.3h-11.85v12.6h11.85z"
+      fill="#fff"
+    />
+  </g>
+
+  <!-- Word mark -->
+  <text x="80" y="360" font-family="-apple-system, system-ui, 'SF Pro Display', sans-serif" font-size="92" font-weight="800" fill="#ffffff" letter-spacing="-3">
+    blockbusterlab
+  </text>
+
+  <!-- Subtitle / tagline -->
+  <text x="82" y="430" font-family="-apple-system, system-ui, sans-serif" font-size="32" font-weight="500" fill="#c4b5fd" letter-spacing="-0.5">
+    Launch &amp; growth services for indie game studios.
+  </text>
+
+  <!-- Service chips -->
+  <g font-family="-apple-system, system-ui, sans-serif" font-size="22" font-weight="600" fill="#e9d5ff">
+    <g transform="translate(80, 490)">
+      <rect width="220" height="50" rx="25" fill="#ffffff" fill-opacity="0.08" stroke="#a78bfa" stroke-opacity="0.4"/>
+      <text x="110" y="32" text-anchor="middle">Press distribution</text>
+    </g>
+    <g transform="translate(316, 490)">
+      <rect width="220" height="50" rx="25" fill="#ffffff" fill-opacity="0.08" stroke="#a78bfa" stroke-opacity="0.4"/>
+      <text x="110" y="32" text-anchor="middle">ASO automation</text>
+    </g>
+    <g transform="translate(552, 490)">
+      <rect width="220" height="50" rx="25" fill="#ffffff" fill-opacity="0.08" stroke="#a78bfa" stroke-opacity="0.4"/>
+      <text x="110" y="32" text-anchor="middle">Global localization</text>
+    </g>
+  </g>
+
+  <!-- Footer text -->
+  <text x="80" y="590" font-family="-apple-system, system-ui, sans-serif" font-size="20" fill="#9ca3af">
+    by (주)블록버스터랩 · indiegame.com official partner · blockbusterlab.com
+  </text>
+
+  <!-- Phase indicator (top right) -->
+  <g transform="translate(960, 90)">
+    <rect width="160" height="40" rx="20" fill="#10b981" fill-opacity="0.18" stroke="#10b981" stroke-opacity="0.6"/>
+    <circle cx="22" cy="20" r="5" fill="#10b981"/>
+    <text x="38" y="26" font-family="-apple-system, system-ui, sans-serif" font-size="16" font-weight="600" fill="#a7f3d0">
+      Phase 1 — ASO live
+    </text>
+  </g>
+</svg>

@@ -1,0 +1,17 @@
+{
+  "name": "blockbusterlab",
+  "short_name": "blockbusterlab",
+  "description": "인디게임의 진실된 파트너 — 보도자료·번역·ASO",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#7c3aed",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -14,6 +14,7 @@
 
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logger } from "@/lib/logger";
 import type { AsoResult } from "@/lib/ai/aso-analyzer";
 import { getLibraryCoverage } from "./library-coverage";
 import {
@@ -475,6 +476,8 @@ async function runScreenshotProductionBranch(opts: {
 export async function generateScreenshotsForOrder(
   orderId: string
 ): Promise<GenerateOutcome> {
+  const log = logger.child({ stage: "screenshot", orderId });
+  log.info("stage9.start");
   const { admin, order, analysis } = await loadOrderAndAnalysis(orderId);
 
   // 타겟 시장 첫 항목을 country 로 사용 (없으면 기본 kr)
@@ -516,6 +519,7 @@ export async function generateScreenshotsForOrder(
 
   // 3. 분기
   if (judgment.verdict === "insufficient") {
+    log.info({ verdict: judgment.verdict }, "stage9.guide_branch");
     return runUploadGuideBranch({
       admin,
       orderId,
@@ -529,6 +533,7 @@ export async function generateScreenshotsForOrder(
   }
 
   // sufficient 또는 partial → 제작 진행
+  log.info({ verdict: judgment.verdict }, "stage9.production_branch");
   return runScreenshotProductionBranch({
     admin,
     orderId,
